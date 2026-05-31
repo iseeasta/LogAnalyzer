@@ -1,0 +1,106 @@
+===================================================================================
+LogParser.java
+===================================================================================
+
+--> { This, reads the raw String lines and converts them into LogEntry objects }
+--> { It does NOT read files, NOT analyze — only parses one line at a time }
+--> { This is the bridge between raw text and usable data }
+
+--> {          public static LogEntry parseLine(String line)
+               {
+                   int closeBrack = line.indexOf(']');
+                   ...
+               }                                                                }
+
+     This method takes one raw line and returns one LogEntry. <---\n--->
+     (line.indexOf(']')) finds the position of the closing bracket. <---\n--->
+     Since format is [timestamp]LEVEL: {log} <---\n--->
+     everything between position 1 and closeBrack is the timestamp.
+
+--> {          String dateTime = line.substring(1, closeBrack).trim();
+               String remaining = line.substring(closeBrack + 1).trim();        }
+
+     (substring(1, closeBrack)) cuts from after [ to before ] — thats the timestamp. <---\n--->
+     (substring(closeBrack + 1)) cuts everything after ] — thats level + log together. <---\n--->
+     (.trim()) removes any accidental spaces on both sides.
+
+     So after these 2 lines: <---\n--->
+     (dateTime) = "2024-01-15T10:23:01" <---\n--->
+     (remaining)  = "ERROR: {Database connection failed}"
+
+--> {          String[] parts  = remaining.split(" ", 2);
+               String level    = parts[0].trim();
+               String log  = parts.length > 1 ? parts[1].trim() : "";      }
+
+     (split(" ", 2)) splits remaining into max 2 parts on first space. <---\n--->
+     (parts[0]) is the level like "ERROR:" <---\n--->
+     (parts[1]) is the rest — the log like "{Database connection failed}"
+
+     (parts.length > 1 ? parts[1] : "") is just safety. <---\n--->
+     If somehow there is no log after the level, we dont crash — just empty string.
+
+--> {          return new LogEntry(dateTime, level, log);                  }
+
+     After extracting all 3 parts, we create a new LogEntry and return it. <---\n--->
+     This object now holds structured data instead of a raw String. <---\n--->
+     LogAnalyzer can now work with .level, .dateTime, .log directly.
+
+--> {          catch (Exception e)
+               {
+                   return new LogEntry("UNKNOWN", "UNKNOWN", line);
+               }                                                                }
+
+     If any line is malformed or doesnt match expected format, <---\n--->
+     instead of crashing the whole program we return a safe fallback LogEntry. <---\n--->
+     Level and dateTime become "UNKNOWN" and the raw line goes into log. <---\n--->
+     Program continues parsing the rest of the file without stopping.
+
+--> {          public static List<LogEntry> parseAll(List<String> lines) throws InterruptedException
+               {
+                   List<LogEntry> entries = Collections.synchronizedList(new ArrayList<>());
+                   int threadCount        = 4;
+                   int chunkSize          = lines.size() / threadCount;
+                   ExecutorService pool   = Executors.newFixedThreadPool(4);
+                   ...
+               }                                                                }
+
+     This is the multithreaded version — parses the whole file using 4 threads. <---\n--->
+     (Collections.synchronizedList) wraps the ArrayList so multiple threads <---\n--->
+     can add to it at the same time without corrupting data. <---\n--->
+     Normal ArrayList is NOT thread-safe — two threads writing together = crash.
+
+     (threadCount = 4) means 4 threads work in parallel. <---\n--->
+     (chunkSize) divides total lines equally among 4 threads. <---\n--->
+     If file has 6000 lines, each thread gets 1500 lines to parse.
+
+--> {          for (int t = 0; t < threadCount; t++)
+               {
+                   int start = t * chunkSize;
+                   int end   = (t == threadCount - 1) ? lines.size() : start + chunkSize;
+                   List<String> chunk = lines.subList(start, end);
+                   pool.submit(() -> { for (String line : chunk) { entries.add(parseLine(line)); } });
+               }                                                                }
+
+     Each iteration of this loop creates one task for one thread. <---\n--->
+     (start) and (end) define which slice of lines this thread handles. <---\n--->
+     Last thread gets (lines.size()) as end — so leftover lines dont get skipped <---\n--->
+     if total lines dont divide evenly by 4.
+
+     (pool.submit) hands the task to the thread pool. <---\n--->
+     All 4 threads run at the same time — parallel parsing. <---\n--->
+     Each thread calls (parseLine) on its chunk and adds results to (entries).
+
+--> {          pool.shutdown();
+               pool.awaitTermination(1, TimeUnit.MINUTES);
+               return entries;                                                  }
+
+     (pool.shutdown()) tells the pool — no new tasks, finish what you have. <---\n--->
+     (awaitTermination) makes main thread wait here until all 4 threads finish. <---\n--->
+     Without this, main thread would return (entries) before threads are done. <---\n--->
+     You would get an empty or half-filled list back. <---\n--->
+     After all threads done, full (entries) list is returned.
+
+
+
+
+     ===================================================================================

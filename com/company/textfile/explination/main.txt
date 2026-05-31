@@ -1,0 +1,91 @@
+===================================================================================
+Main.java
+===================================================================================
+
+--> { This, is the entry point — it connects all other classes together }
+--> { Generator → Reader → Parser → DB → CLI Menu — all called from here }
+--> { Nothing complex lives here — just coordination and user interaction }
+
+--> {          DatabaseHandler.createTable();                                     }
+
+     First thing that runs before anything else. <---\n--->
+     Creates the (logs) table in PostgreSQL if it doesnt exist yet. <---\n--->
+     Must run before any inserts — otherwise DB has nowhere to put data. <---\n--->
+     (IF NOT EXISTS) in SQL means if table already there, just skip quietly.
+
+--> {          LogGenerator.generate(LOG_FILE);
+               List<String> lines = LogReader.readLines(LOG_FILE);
+               List<LogEntry> entries = LogParser.parseAll(lines);
+               DatabaseHandler.insertAll(entries);                                }
+
+     These 4 lines are the full pipeline — runs once before menu starts. <---\n--->
+     (generate) writes app.log to disk with 6000+ fake log lines. <---\n--->
+     (readLines) reads it back as a raw List of Strings. <---\n--->
+     (parseAll) sends those Strings through 4 threads, converts to LogEntry objects. <---\n--->
+     (insertAll) batch inserts all entries into PostgreSQL in one go.
+
+     After these 4 lines — data exists in memory (entries) AND in DB. <---\n--->
+     Fast in-memory ops use (entries). <---\n--->
+     Persistent DB queries use DatabaseHandler.
+
+--> {          boolean running = true;
+               while (running)
+               {
+                   ...menu...
+                   int choice = scAn.nextInt();
+                   scAn.nextLine();
+                   switch (choice) { ... }
+               }                                                                  }
+
+     (running) flag keeps the menu alive until user picks Exit. <---\n--->
+     (scAn.nextInt()) reads the number user types. <---\n--->
+     (scAn.nextLine()) right after flushes the leftover newline from nextInt. <---\n--->
+     Without that flush — next keyword or date input would get empty string. <---\n--->
+     Classic Scanner trap. that one line saves a lot of headache.
+
+--> {          case 2:
+                   List<LogEntry> errors = LogAnalyzer.filterByLevel(entries, "ERROR:");
+                   errors.forEach(e -> System.out.println(e));
+                   System.out.println("Total: " + errors.size());
+                   break;                                                         }
+
+     (filterByLevel) called with "ERROR:" not "ERROR". <---\n--->
+     Because LogGenerator writes level as "ERROR:" with colon attached. <---\n--->
+     Parser grabs it as-is — so filter must match exactly what is stored. <---\n--->
+     (forEach with lambda) uses Java 8 style to print each entry. <---\n--->
+     (e -> System.out.println(e)) calls toString() on LogEntry automatically.
+
+--> {          case 7:
+                   Map<String, Long> least = LogAnalyzer.leastMessages(entries, 5);
+                   least.forEach((msg, count) ->
+                           System.out.println("[" + count + "x] " + msg));
+                   break;                                                         }
+
+     (leastMessages) returns 5 rarest messages — lowest count first. <---\n--->
+     Useful for spotting one-time events or rare anomalies in logs. <---\n--->
+     Same print format as topMessages — [count x] message.
+
+--> {          case 10:
+                   running = false;
+                   System.out.println("Exiting.");
+                   break;                                                         }
+
+     (running = false) exits the while loop cleanly. <---\n--->
+     try-with-resources on Scanner handles closing automatically after loop ends. <---\n--->
+     No System.exit() needed — clean shutdown.
+
+--> {          catch (Exception e)
+               {
+                   System.out.println("Error: " + e.getMessage());
+                   e.printStackTrace();
+               }                                                                  }
+
+     One catch wraps the entire main method. <---\n--->
+     Any exception from any class — DB, file, parsing — lands here. <---\n--->
+     (getMessage()) prints short readable error. <---\n--->
+     (printStackTrace()) prints full trace so you know exactly where it broke.
+
+
+
+
+===================================================================================

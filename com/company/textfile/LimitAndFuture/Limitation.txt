@@ -1,0 +1,62 @@
+===================================================================================
+LIimitation.txt
+( yeah i know, its not perfect. here is what this thing cant do yet )
+===================================================================================
+
+--> LIMITATION 1 — Log file generates fresh every single run
+
+     Every time you run Main.java, LogGenerator nukes the old app.log <---\n--->
+     and writes a brand new one. <---\n--->
+     So DB keeps getting duplicate data on every run. <---\n--->
+     6012 entries become 12024 on second run. 18036 on third. you get it. <---\n--->
+     There is no check like "hey this file already exists, skip generation". <---\n--->
+     Future fix — check if app.log exists before generating. or add a CLI option.
+
+--> LIMITATION 2 — Level has colon attached ( "ERROR:" not "ERROR" )
+
+     LogGenerator writes [timestamp]ERROR: {message} with colon stuck to level. <---\n--->
+     Parser grabs "ERROR:" as the level — colon included. <---\n--->
+     So every filter and DB query has to use "ERROR:" not "ERROR". <---\n--->
+     Not a crash, just annoying. and confusing if someone else reads the code. <---\n--->
+     Future fix — strip the colon in parseLine() before storing.
+     like ( level = parts[0].replace(":", "").trim() ) one line fix honestly.
+
+--> LIMITATION 3 — No real log file support
+
+     This whole thing reads only the fake file LogGenerator made. <---\n--->
+     It cannot read an actual server log from nginx, spring boot, or anything real. <---\n--->
+     Because real logs have completely different formats. <---\n--->
+     Future fix — add a format detector or let user define the pattern.
+
+--> LIMITATION 4 — DB grows forever with no cleanup
+
+     Every run inserts 6012 more entries. no limit, no archival, no rotation. <---\n--->
+     Option 9 clears it manually but nobody is going to do that every time. <---\n--->
+     Future fix — auto TRUNCATE before insertAll, or keep only last N runs.
+
+--> LIMITATION 5 — 4 threads hardcoded
+
+     threadCount = 4 is just written as a magic number. <---\n--->
+     On a machine with 2 cores this might actually be slower than 1 thread. <---\n--->
+     Future fix — detect available processors and set threads accordingly.
+     like ( int threadCount = Runtime.getRuntime().availableProcessors() ) done.
+
+--> LIMITATION 6 — No pagination on output
+
+     Option 2 shows ALL error entries at once. <---\n--->
+     6012 entries, roughly half are high level logs. <---\n--->
+     Terminal just gets absolutely cooked with output. <---\n--->
+     Future fix — show 20 at a time. press enter for next page. basic stuff.
+
+--> LIMITATION 7 — Parser is fragile on weird lines
+
+     If a line doesnt have ] or has extra spaces in weird places, <---\n--->
+     parseLine returns UNKNOWN UNKNOWN and moves on. <---\n--->
+     That is the safe fallback yes, but you lose that entry silently. <---\n--->
+     No counter tracking how many lines failed to parse. <---\n--->
+     Future fix — count failed parses and report at the end.
+
+
+
+
+===================================================================================

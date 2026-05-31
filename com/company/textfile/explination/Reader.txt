@@ -1,0 +1,43 @@
+===================================================================================
+LogReader.java
+===================================================================================
+
+--> { This, reads the log file from disk and returns all lines as a List }
+--> { It does NOT parse, NOT analyze — only reads raw text line by line }
+--> { Every other class gets its data from what this returns }
+
+--> {          BufferedReader br = new BufferedReader(new FileReader(filePath));  }
+
+     (FileReader) opens the file at given path for reading. <---\n--->
+     (BufferedReader) wraps it to read efficiently in chunks. <---\n--->
+     FileReader alone reads char by char — hits disk constantly — slow. <---\n--->
+     BufferedReader loads a chunk into memory first then reads from there — fast. <---\n--->
+     Also gives us (readLine()) which FileReader alone does not have.
+
+--> {          while ((line = br.readLine()) != null)
+               {
+                   if (!line.trim().isEmpty())
+                   {
+                       lines.add(line);
+                   }
+               }                                                                  }
+
+     (br.readLine()) reads one full line at a time and returns it as String. <---\n--->
+     When file ends it returns (null) — thats when loop stops. <---\n--->
+     (line.trim().isEmpty()) skips blank lines. <---\n--->
+     LogGenerator writes a blank line after every 12 entries for readability. <---\n--->
+     We dont want those blank lines polluting our entries list. <---\n--->
+     So we check and skip — only real log lines get added to (lines).
+
+--> {          br.close();
+               return lines;                                                      }
+
+     (br.close()) closes the file properly after reading is done. <---\n--->
+     Without this, file stays locked and memory isnt freed. <---\n--->
+     Then we return the full (lines) list to whoever called this method. <---\n--->
+     In Main, that caller is LogParser which then parses every line.
+
+
+
+
+===================================================================================

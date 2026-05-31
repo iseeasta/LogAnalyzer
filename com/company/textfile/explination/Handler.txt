@@ -1,0 +1,124 @@
+===================================================================================
+1) DatabaseHandler.java
+===================================================================================
+
+--> { This, handles everything related to PostgreSQL database }
+--> { Connect, create table, insert, fetch, clear —everything is here }
+--> { This file directly talks to Database }
+
+--> {          private static final String URL  = "jdbc:postgresql://localhost:5432/LogDB";
+               private static final String USER = "iseeasta";
+               private static final String PASS = "iseeasta@24680";            }
+
+     These 3 are the connection details to reach PostgreSQL. <---\n--->
+     (URL) has the protocol (jdbc:postgresql), host (localhost), <---\n--->
+     port (5432 which is default postgres port), and database name (LogDB). <---\n--->
+     (USER) and (PASS) are the postgres credentials.
+
+     All 3 are (static final) meaning they never change and belong to class, not object. <---\n--->
+     Every method uses these same 3 values to connect.
+
+--> {          private static Connection getConnection() throws SQLException
+               {
+                   return DriverManager.getConnection(URL, USER, PASS);
+               }                                                                }
+
+     This is a private helper method — only used inside this class. <---\n--->
+     (DriverManager.getConnection) is the JDBC call that actually opens the connection. <---\n--->
+     It uses the 3 constants above and returns a live Connection object.
+
+     Every other method calls this instead of writing connection code again. <---\n--->
+     One place to change if credentials ever change. clean.
+
+--> {          public static void createTable() throws SQLException
+               {
+                   String sql = "CREATE TABLE IF NOT EXISTS logs (" +
+                           "id SERIAL PRIMARY KEY, " +
+                           "log_time VARCHAR(50), " +
+                           "level VARCHAR(20), " +
+                           "log TEXT)";
+                   ...
+               }                                                                }
+
+     This creates the (logs) table if it doesnt already exist. <---\n--->
+     (IF NOT EXISTS) means if table is already there, no error — just skip. <---\n--->
+     (id SERIAL PRIMARY KEY) auto-increments — DB assigns id automatically. <---\n--->
+     (log_time VARCHAR(50)) stores timestamp as string, 50 chars max. <---\n--->
+     (level VARCHAR(20)) stores level like SUGGESTION, EMERGENCY etc. 20 chars max. <---\n--->
+     (log TEXT) stores the full message — TEXT has no size limit unlike VARCHAR.
+
+     This runs first thing in Main before anything else. <---\n--->
+     So table is always ready before any inserts happen.
+
+--> {          public static void insertAll(List<LogEntry> entries) throws SQLException
+               {
+                   ...
+                   conn.setAutoCommit(false);
+                   for (LogEntry entry : entries)
+                   {
+                       ps.addBatch();
+                   }
+                   ps.executeBatch();
+                   conn.commit();
+                   ...
+               }                                                                }
+
+     This inserts all 6012 entries in one go — batch insert. <---\n--->
+     (setAutoCommit(false)) turns off auto commit. <---\n--->
+     Normally every insert commits to DB immediately — slow for 6000 rows. <---\n--->
+     With autoCommit off, nothing goes to DB until we say so.
+
+     (ps.addBatch()) queues each insert without executing it. <---\n--->
+     (ps.executeBatch()) fires all 6000 inserts together in one network call. <---\n--->
+     (conn.commit()) then permanently saves everything to DB.
+
+     This is way faster than calling insertEntry 6000 times one by one. <---\n--->
+     One trip to DB instead of 6000 trips.
+
+--> {          public static List<LogEntry> fetchAll() throws SQLException
+               {
+                   String sql = "SELECT log_time, level, log FROM logs";
+                   ...
+                   while (rs.next())
+                   {
+                       entries.add(new LogEntry(...));
+                   }
+                   return entries;
+               }                                                                }
+
+     This fetches every row from the logs table. <---\n--->
+     (ResultSet rs) holds all rows returned by the query. <---\n--->
+     (rs.next()) moves one row forward each time — like iterator. <---\n--->
+     Each row becomes a new LogEntry and gets added to (entries) list. <---\n--->
+     After all rows done, full list is returned.
+
+--> {          public static List<LogEntry> fetchByLevel(String level) throws SQLException
+               {
+                   String sql = "SELECT log_time, level, log FROM logs WHERE level = ?";
+                   ps.setString(1, level.toUpperCase());
+                   ...
+               }                                                                }
+
+     Same as fetchAll but with a WHERE filter. <---\n--->
+     (?) is a placeholder — PreparedStatement fills it safely. <---\n--->
+     (.toUpperCase()) because levels in DB are stored as "ERROR:" not "error". <---\n--->
+     So user can type anything, it gets uppercased before querying.
+
+     Using (PreparedStatement) with (?) instead of string concat is important. <---\n--->
+     String concat like ("WHERE level = " + level) is vulnerable to SQL injection. <---\n--->
+     PreparedStatement handles it safely.
+
+--> {          public static void clearLogs() throws SQLException
+               {
+                   stmt.execute("TRUNCATE TABLE logs");
+                   System.out.println("All logs cleared from DB.");
+               }                                                                }
+
+     (TRUNCATE TABLE logs) deletes every row instantly. <---\n--->
+     Faster than (DELETE FROM logs) because it doesnt scan rows one by one. <---\n--->
+     Used in CLI menu option to wipe DB and start fresh.
+
+
+
+
+===================================================================================

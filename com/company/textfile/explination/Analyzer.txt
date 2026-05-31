@@ -1,0 +1,104 @@
+===================================================================================
+LogAnalyzer.java
+===================================================================================
+
+--> { This, takes a List of LogEntry objects and runs analysis on them }
+--> { It does NOT touch files, NOT touch DB — only works on in-memory data }
+--> { Every method here uses Java 8 Streams }
+
+--> {          public static Map<String, Long> countByLevel(List<LogEntry> entries)
+               {
+                   return entries.stream()
+                       .collect(Collectors.groupingBy(e -> e.level, Collectors.counting()));
+               }                                                               }
+
+     This counts how many times each level appears. <---\n--->
+     (entries.stream()) converts the List into a stream so we can process it. <---\n--->
+     (groupingBy(e -> e.level)) groups all entries by their level field. <---\n--->
+     (Collectors.counting()) counts how many are in each group. <---\n--->
+     Result is a Map like {ERROR=120, WARN=85, INFO=200, FATAL=15 ...}
+
+     This is your first output when the program runs — the summary.
+
+--> {          public static List<LogEntry> filterByLevel(List<LogEntry> entries, String level)
+               {
+                   return entries.stream()
+                       .filter(e -> e.level.equalsIgnoreCase(level))
+                       .collect(Collectors.toList());
+               }                                                               }
+
+     This filters and returns ONLY the entries that match the given level. <---\n--->
+     (filter) keeps only entries where (e.level) matches the (level) param. <---\n--->
+     (equalsIgnoreCase) so user can type "error" or "ERROR" — both work. <---\n--->
+     (collect(Collectors.toList())) converts stream back to a List.
+
+     Call this with "ERROR" and you get only error entries. <---\n--->
+     Call with "FATAL" and you get only fatals. same method, different input.
+
+--> {          public static List<LogEntry> searchByKeyword(List<LogEntry> entries, String keyword)
+               {
+                   return entries.stream()
+                       .filter(e -> e.log.toLowerCase().contains(keyword.toLowerCase()))
+                       .collect(Collectors.toList());
+               }                                                               }
+
+     This searches inside the log text of every entry. <---\n--->
+     (e.log.toLowerCase()) converts message to lowercase. <---\n--->
+     (.contains(keyword.toLowerCase())) checks if keyword exists anywhere in it. <---\n--->
+     Both sides lowercased so search is case-insensitive.
+
+     User types "database" and entries with "Database" or "DATABASE" all come up. <---\n--->
+     This is your keyword search feature in the CLI menu.
+
+--> {          public static List<LogEntry> searchByDate(List<LogEntry> entries, String date)
+               {
+                   return entries.stream()
+                       .filter(e -> e.dateTime.contains(date))
+                       .collect(Collectors.toList());
+               }                                                               }
+
+     This filters entries by date. <---\n--->
+     (e.dateTime.contains(date)) checks if the given date string exists in timestamp. <---\n--->
+     User gives "2024-01-15" and every entry from that date comes up. <---\n--->
+     Simple contains check — works because timestamp always has the date at the start.
+
+--> {          public static Map<String, Long> topMessages(List<LogEntry> entries, int topN)
+               {
+                   return entries.stream()
+                       .collect(Collectors.groupingBy(e -> e.log, Collectors.counting()))
+                       .entrySet().stream()
+                       .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                       .limit(topN)
+                       .collect(Collectors.toMap(..., LinkedHashMap::new));
+               }                                                               }
+
+     This finds the most repeated messages in the log. <---\n--->
+     First (groupingBy log + counting) makes a Map of {log -> count}. <---\n--->
+     Then (.entrySet().stream()) streams all those map entries. <---\n--->
+     (sorted) sorts them highest count first — (b - a) means descending. <---\n--->
+     (limit(topN)) keeps only top N results. <---\n--->
+     (LinkedHashMap) is used at the end to preserve the sorted order. <---\n--->
+     Normal HashMap does not guarantee order. LinkedHashMap does.
+
+     Pass topN=5 and you get the 5 most repeated messages. <---\n--->
+     Useful to see which errors are spamming the most.
+
+--> {          public static Map<String, Long> leastMessages(List<LogEntry> entries, int leastN)
+               {
+                   return entries.stream()
+                       .collect(Collectors.groupingBy(e -> e.log, Collectors.counting()))
+                       .entrySet().stream()
+                       .sorted((b, a) -> Long.compare(a.getValue(), b.getValue()))
+                       .limit(leastN)
+                       .collect(Collectors.toMap(..., LinkedHashMap::new));
+               }                                                               }
+
+     Exact same as topMessages above — only one thing changed. <---\n--->
+     (sorted(a, b) -> Long.compare(a.getValue(), b.getValue())) is now (a - b) ascending. <---\n--->
+     So lowest count comes first instead of highest. <---\n--->
+     That gives you the rarest log — things that happened only once or twice.
+
+
+
+
+===================================================================================

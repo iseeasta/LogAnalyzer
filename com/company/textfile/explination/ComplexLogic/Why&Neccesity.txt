@@ -1,0 +1,194 @@
+===================================================================================
+Why&Neccesity.txt
+( things i guess, I didn't explained well back then, and problem i faced while <---\n--->
+ making this project )
+===================================================================================
+
+===================================================================================
+Main.java
+===================================================================================
+
+--> WHY EVERY CASE USES List<LogEntry> AND THEN CALLS FUNCTION FROM OTHER CLASS
+
+     Because (LogAnalyzer) methods need data to work on. <---\n--->
+     That data is (entries) — a List of all parsed log lines sitting in memory. <---\n--->
+     We pass it to LogAnalyzer, it filters/counts/searches and returns result. <---\n--->
+     Main just prints whatever comes back. thats it.
+
+     Main doesnt do analysis. LogAnalyzer doesnt hold data. <---\n--->
+     Separation — each class does one job.
+
+--> WHY List<LogEntry> — IT JUST HOLDS OBJECTS
+
+     Exactly right. <---\n--->
+     LogEntry is one parsed line — dateTime, level, log. <---\n--->
+     List<LogEntry> is a collection of all those parsed lines. <---\n--->
+     6012 lines = 6012 LogEntry objects inside one List.
+
+     We pass this List to analyzer methods so they can loop over all 6012 entries. <---\n--->
+     Without the List we would have to pass 6012 individual objects. not happening.
+
+===================================================================================
+LogAnalyzer.java
+===================================================================================
+
+--> WHY Map<String, Long> countByLevel(List<LogEntry> entries) HAS LIST INSIDE MAP FUNCTION
+
+     (List<LogEntry> entries) is the INPUT parameter — data we are passing in. <---\n--->
+     (Map<String, Long>) is the OUTPUT — what the function returns. <---\n--->
+     They are not inside each other. <---\n--->
+     Read it as — "give me a List, i will return a Map".
+
+     Map result looks like this: <---\n--->
+     { "ERROR:" = 120, "WARN:" = 85, "INFO:" = 200 }
+
+--> WHAT DOES .collect(Collectors. DO
+
+     Stream processes data but doesnt store anything by itself. <---\n--->
+     (.collect) is how you tell the stream — ok stop processing, give me the result now. <---\n--->
+     (Collectors.toList()) — collect into a List. <---\n--->
+     (Collectors.groupingBy()) — collect into a Map grouped by something. <---\n--->
+     (Collectors.counting()) — collect by counting how many in each group.
+
+     Without (.collect) the stream just floats in memory doing nothing. <---\n--->
+     (.collect) is the final step that gives you actual usable data back.
+
+--> WHY NO String level PARAMETER IN countByLevel BUT filterByLevel HAS IT
+
+     (countByLevel) counts ALL levels — it doesnt care which specific level. <---\n--->
+     It groups everything automatically — ERROR, WARN, INFO all at once. <---\n--->
+     No need to say which level — give it all.
+
+     (filterByLevel) returns only ONE specific level. <---\n--->
+     So we need to tell it which level — "ERROR:" or "WARN:" etc. <---\n--->
+     Thats why (String level) parameter exists there.
+
+--> HOW TF ARE THERE SO MANY public static — ISNT ONLY ONE ALLOWED PER CLASS
+
+     No — one class can have as many (public static) methods as you want. <---\n--->
+     Only ONE (public static void main) is allowed — that is the entry point rule. <---\n--->
+     (public static) on other methods just means — callable without creating object. <---\n--->
+     LogAnalyzer.countByLevel() — called directly, no new LogAnalyzer() needed.
+
+--> WHAT DOES .entrySet().stream() DO IN topMessages
+
+     After (groupingBy + counting) we have a Map — not a stream anymore. <---\n--->
+     Map looks like { "Database failed" = 45, "Cache cleared" = 12 ... } <---\n--->
+     To sort this Map we need to stream it again. <---\n--->
+     (.entrySet()) converts Map into a Set of key-value pairs. <---\n--->
+     (.stream()) converts that Set into a stream so we can sort and limit it.
+
+     Without (.entrySet().stream()) we cant sort a Map. <---\n--->
+     Maps have no order by default.
+
+--> HOW DOES sorted WORK — ASCENDING, NATURAL, DESCENDING
+
+     (sorted) takes two elements (a, b) and compares them. <---\n--->
+     Return negative = a comes first. <---\n--->
+     Return positive = b comes first. <---\n--->
+     Return zero = same position.
+
+     Ascending (lowest first):
+     .sorted((a, b) -> Long.compare(a.getValue(), b.getValue()))
+     small a compared to big b = negative = a comes first = low to high.
+
+     Descending (highest first):
+     .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+     big b compared to small a = negative = b comes first = high to low.
+
+     Natural (no sort, original order):
+     dont call .sorted() at all.
+
+--> WHY USE LinkedHashMap IF WE ARE JUST PRINTING — WOULDNT SORTED ORDER STAY
+
+     No. <---\n--->
+     Normal HashMap has NO guaranteed order — sorted order gets destroyed instantly. <---\n--->
+     After (.sorted) the stream is in order. <---\n--->
+     But (.collect(Collectors.toMap())) by default puts result into HashMap. <---\n--->
+     HashMap scrambles the order randomly.
+
+     LinkedHashMap preserves insertion order. <---\n--->
+     So we collect into LinkedHashMap to keep the sorted order intact. <---\n--->
+     Then when we (.forEach) to print — order is correct.
+
+     If you just wanted to print and throw away — you could skip LinkedHashMap. <---\n--->
+     But since we return a Map, caller needs order preserved too.
+
+===================================================================================
+LogGenerator.java
+===================================================================================
+
+--> HOW FileWriter HITS DISK AND WHAT BufferedWriter FLUSHES
+
+     (FileWriter) opens a direct pipe to the file on disk. <---\n--->
+     Every single (write()) call goes straight to disk immediately. <---\n--->
+     Disk access is slow — doing it 6000 times = 6000 slow trips.
+
+     (BufferedWriter) sits between your code and FileWriter. <---\n--->
+     It has an internal memory buffer — like a small holding area. <---\n--->
+     When you write, it goes into buffer first — not disk. <---\n--->
+     When buffer fills up OR when you call (.close()) — <---\n--->
+     BufferedWriter flushes — dumps everything to disk in one trip. <---\n--->
+     Flushing means — ok buffer is full, send all of it to disk now, clear buffer.
+
+     6000 writes = 1 disk trip instead of 6000. thats the difference.
+
+--> WHAT IS lowLevels[rd.nextInt(lowLevels.length)] AND WHY .length
+
+     (rd.nextInt(n)) gives a random number from 0 to n-1. <---\n--->
+     We need a random INDEX to pick from the array. <---\n--->
+     (lowLevels.length) gives the size of the array — say 3. <---\n--->
+     So (rd.nextInt(3)) gives 0, 1, or 2 — valid indexes for a 3-element array.
+
+     Without (.length) you would hardcode the number — like (rd.nextInt(3)). <---\n--->
+     If you later add a 4th level, you forget to change the 3 — bug. <---\n--->
+     (.length) auto-adjusts — array grows, range grows with it.
+
+===================================================================================
+LogParser.java
+===================================================================================
+
+--> WHAT DOES String log = parts.length > 1 ? parts[1].trim() : "" MEAN
+
+     This is a ternary operator — short form of if-else. <---\n--->
+     (parts.length > 1) — checks if parts array has more than 1 element. <---\n--->
+     If YES — (log = parts[1].trim()) — take second part as the message. <---\n--->
+     If NO  — (log = "") — set log as empty string.
+
+     Why check — because (split(" ", 2)) on a weird malformed line <---\n--->
+     might give only 1 part — just level, no message after it. <---\n--->
+     If we blindly do (parts[1]) without checking — ArrayIndexOutOfBoundsException. <---\n--->
+     This check prevents that crash.
+
+--> WHAT IS ExecutorService pool = Executors.newFixedThreadPool(4)
+
+     (ExecutorService) is a thread manager — it manages a pool of threads for you. <---\n--->
+     (newFixedThreadPool(4)) creates exactly 4 threads — no more, no less. <---\n--->
+     You submit tasks to it, it assigns them to available threads automatically. <---\n--->
+     Without this you would have to create, start, and manage 4 threads manually. <---\n--->
+     ExecutorService handles all of that.
+
+--> THE CHUNK LOOP LOGIC GONE OVER MY HEAD
+
+     Goal — split 6012 lines into 4 equal parts, give each part to one thread.
+
+     chunkSize = 6012 / 4 = 1503. each thread gets 1503 lines.
+
+     Loop runs 4 times (t = 0, 1, 2, 3):
+
+     t=0: start=0,    end=1503   → thread 0 gets lines 0 to 1502
+     t=1: start=1503, end=3006   → thread 1 gets lines 1503 to 3005
+     t=2: start=3006, end=4509   → thread 2 gets lines 3006 to 4508
+     t=3: start=4509, end=6012   → thread 3 gets lines 4509 to 6011
+
+     Last thread check — (t == threadCount - 1) ? lines.size() <---\n--->
+     If 6012 doesnt divide evenly by 4, last thread takes whatever is left. <---\n--->
+     No lines get skipped.
+
+     (lines.subList(start, end)) cuts that slice of lines for that thread. <---\n--->
+     (pool.submit()) gives that slice to the thread pool to run. <---\n--->
+     All 4 threads run at the same time — parallel. <---\n--->
+     Each calls parseLine on every line in its chunk. <---\n--->
+     Results go into shared (entries) list.
+
+===================================================================================

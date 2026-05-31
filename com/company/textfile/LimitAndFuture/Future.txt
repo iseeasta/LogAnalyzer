@@ -1,0 +1,48 @@
+===================================================================================
+Future.txt
+( things i will add when i have time and patience )
+===================================================================================
+
+--> PHASE 1 — Small fixes that should have been there already
+
+     - Strip colon from level in parseLine() — "ERROR:" becomes "ERROR" <---\n--->
+     - Check if app.log exists before generating a new one <---\n--->
+     - Use Runtime.getRuntime().availableProcessors() for thread count <---\n--->
+     - Add failed parse counter and print at end of parsing <---\n--->
+     - Add TRUNCATE before insertAll so DB doesnt grow forever
+
+--> PHASE 2 — Features that make the CLI actually useful
+
+     - Pagination — show 20 entries at a time, press enter for next <---\n--->
+     - Export results to .txt or .csv file using BufferedWriter <---\n--->
+     - Search by level AND keyword combined — not just one at a time <---\n--->
+     - Show error spike detection — if 10+ errors in same minute, flag it <---\n--->
+     - Show statistics summary — total entries, error percentage, most common level
+
+--> PHASE 3 — Actual technical upgrades
+
+     - Let user provide their own log file path as CLI argument <---\n--->
+     - Add configurable log format so it can read real server logs <---\n--->
+     - Add connection pooling in DatabaseHandler instead of new connection every call <---\n--->
+     - Write results back into a separate DB table — search_history or reports <---\n--->
+     - Use PreparedStatement caching for repeated queries
+
+--> PHASE 4 — The ambitious stuff ( aka when i stop being lazy )
+
+     - Live log monitoring — watch app.log for new lines and parse in real time <---\n--->
+       basically a separate thread sitting idle, wakes up when file changes. <---\n--->
+       like tail -f but in Java and way more complicated than it needs to be.
+
+     - JavaFX dashboard — show counts, spikes, top errors in a GUI <---\n--->
+       because staring at a black terminal gets old after a while.
+
+     - Multiple log file support — analyze 5 files at once, merge results <---\n--->
+       each file gets its own thread pool. chaos but organized chaos.
+
+     - Alert system — if EMERGENCY or FATAL appears, print a big red warning <---\n--->
+       or write it to a separate alerts.log file automatically.
+
+
+
+
+===================================================================================

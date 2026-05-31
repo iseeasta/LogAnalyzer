@@ -1,0 +1,54 @@
+===================================================================================
+LogEntry.java
+===================================================================================
+
+--> { This, is just a data container — it holds 3 pieces of one parsed log line }
+--> { It does NOT read files, NOT analyze anything, NOT write anything }
+--> { Every parsed line becomes one LogEntry object }
+
+--> {          String dateTime;
+               String level;
+               String log;               }
+
+     These are the 3 fields that every log line has. <---\n--->
+     (dateTime) holds the timestamp like (2024-01-15T10:23:01) <---\n--->
+     (level) holds the type like (ERROR, WARN, INFO, FATAL etc.) <---\n--->
+     (log) holds the actual message like (Database connection failed)
+
+     Think of it like a box with 3 labeled slots. <---\n--->
+     LogParser fills those slots, LogAnalyzer reads from those slots.
+
+--> {          public LogEntry(String dateTime, String level, String log)
+               {
+                   this.dateTime = dateTime;
+                   this.level    = level;
+                   this.log      = log;
+               }                                                               }
+
+     This is the constructor. When LogParser creates a new LogEntry, <---\n--->
+     it stored in the 3 fields above.t passes 3 values here, and they get <---\n--->
+     (this.dateTime) means the field of THIS object, not the parameter coming in. <---\n--->
+     Same for level and log.
+
+     Without this constructor, you cant create a LogEntry object with values. <---\n--->
+     It would just be an empty box with nothing inside.
+
+--> {          @Override
+               public String toString()
+               {
+                   return "[" + dateTime + "] " + level + ": {" + log + "}";
+               }                                                               }
+
+     (toString) gets called automatically when you print a LogEntry object. <---\n--->
+     Like when you do (System.out.println(entry)) — this method runs. <---\n--->
+     Without it, Java would print something ugly like (com.company.LogEntry@5f4da5c3). <---\n--->
+     With it, you get a clean readable line like:
+     [2024-01-15T10:23:01] ERROR: {Database connection failed}
+
+     The format matches exactly what LogGenerator wrote into the file. <---\n--->
+     So input and output look the same. clean.
+
+
+
+
+===================================================================================

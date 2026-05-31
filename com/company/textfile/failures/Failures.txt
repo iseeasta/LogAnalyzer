@@ -1,0 +1,297 @@
+package com.company.ProjectMaking;
+
+import java.io.*;
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class LogAnalyzer
+{
+    //Log Entry
+    static class LogEntry
+    {
+        String dateTime;
+        String level;
+        String log;
+
+        LogEntry(String dateTime, String level, String log)
+        {
+            this.dateTime = dateTime;
+            this.level    = level;
+            this.log      = log;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "[" + dateTime + "] " + level + " " + log;
+        }
+    }
+
+    //DB Details
+    static final String URL  = "jdbc:postgresql://localhost:5432/logdb";
+    static final String USER = "iseeasta";
+    static final String PASS = "iseeasta@24680";
+
+    //Main
+    public static void main(String[] args) throws Exception
+    {
+        Scanner scAn = new Scanner(System.in);
+
+        //Generate → Read → Parse → Store
+        generateLog("app.log");
+        List<LogEntry> entries = parseAll(readLines("app.log"));
+        createTable();
+        insertAll(entries);
+
+        System.out.println("Done. " + entries.size() + " entries loaded.");
+
+        //Menu
+        boolean running = true;
+
+        while(running)
+        {
+            System.out.println("\n1.Count by level  2.Errors  3.Warns  4.Keyword search");
+            System.out.println("5.Date search  6.Top 5  7.Least 5  8.DB errors  9.Clear DB  10.Exit");
+            System.out.print("Choose: ");
+
+            int choice = scAn.nextInt();
+            scAn.nextLine();
+
+            switch(choice)
+            {
+                case 1:
+                    countByLevel(entries).forEach((k, v) -> System.out.println(k + " : " + v));
+                    break;
+
+                case 2:
+                    filterByLevel(entries, "ERROR:").forEach(e -> System.out.println(e));
+                    break;
+
+                case 3:
+                    filterByLevel(entries, "WARN:").forEach(e -> System.out.println(e));
+                    break;
+
+                case 4:
+                    System.out.print("Keyword: ");
+                    String kw = scAn.nextLine();
+                    searchByKeyword(entries, kw).forEach(e -> System.out.println(e));
+                    break;
+
+                case 5:
+                    System.out.print("Date (eg- 2026-05-30): ");
+                    String dt = scAn.nextLine();
+                    searchByDate(entries, dt).forEach(e -> System.out.println(e));
+                    break;
+
+                case 6:
+                    topMessages(entries, 5).forEach((k, v) -> System.out.println("[" + v + "x] " + k));
+                    break;
+
+                case 7:
+                    leastMessages(entries, 5).forEach((k, v) -> System.out.println("[" + v + "x] " + k));
+                    break;
+
+                case 8:
+                    fetchByLevel("ERROR:").forEach(e -> System.out.println(e));
+                    break;
+
+                case 9:
+                    clearLogs();
+                    break;
+
+                case 10:
+                    running = false;
+                    break;
+
+                default:
+                    System.out.println("Invalid.");
+                    break;
+            }
+        }
+
+        scAn.close();
+    }
+
+    //Generate log file
+    static void generateLog(String filePath) throws IOException
+    {
+        String[] levels   = {"INFO:", "WARN:", "ERROR:", "FATAL:", "DEBUG:"};
+        String[] messages = {
+            "Server started on port 8080",
+            "Database connection failed",
+            "User admin logged in",
+            "NullPointerException at line 42",
+            "Memory usage above 80%",
+            "Request timeout after 30s",
+            "File not found: config.xml",
+            "Processed 200 records successfully",
+            "Connection pool exhausted",
+            "Cache cleared successfully"
+        };
+
+        BufferedWriter bw = new BufferedWriter(new FileWriter(filePath));
+        Random rd         = new Random();
+
+        for(int i = 0; i <= 500; i++)
+        {
+            String time = LocalDateTime.now().plusMinutes(i).toString();
+            bw.write("[" + time + "]" + levels[rd.nextInt(levels.length)] + " " + messages[rd.nextInt(messages.length)]);
+            bw.newLine();
+        }
+
+        bw.close();
+    }
+
+    //Read file lines
+    static List<String> readLines(String filePath) throws IOException
+    {
+        List<String> lines = new ArrayList<>();
+        BufferedReader br  = new BufferedReader(new FileReader(filePath));
+        String line;
+
+        while((line = br.readLine()) != null)
+        {
+            if(!line.trim().isEmpty()) { lines.add(line); }
+        }
+
+        br.close();
+        return lines;
+    }
+
+    //Parse all lines
+    static List<LogEntry> parseAll(List<String> lines)
+    {
+        List<LogEntry> entries = new ArrayList<>();
+
+        for(String line : lines)
+        {
+            try
+            {
+                int closeBrack   = line.indexOf(']');
+                String dateTime  = line.substring(1, closeBrack).trim();
+                String remaining = line.substring(closeBrack + 1).trim();
+                String[] parts   = remaining.split(" ", 2);
+                String level     = parts[0].trim();
+                String log       = parts.length > 1 ? parts[1].trim() : "";
+
+                entries.add(new LogEntry(dateTime, level, log));
+            }
+            catch(Exception e)
+            {
+                entries.add(new LogEntry("UNKNOWN", "UNKNOWN", line));
+            }
+        }
+
+        return entries;
+    }
+
+    //Count by level
+    static Map<String, Long> countByLevel(List<LogEntry> entries)
+    {
+        return entries.stream().collect(Collectors.groupingBy(e -> e.level, Collectors.counting()));
+    }
+
+    //Filter by level
+    static List<LogEntry> filterByLevel(List<LogEntry> entries, String level)
+    {
+        return entries.stream().filter(e -> e.level.equalsIgnoreCase(level)).collect(Collectors.toList());
+    }
+
+    //Search by keyword
+    static List<LogEntry> searchByKeyword(List<LogEntry> entries, String keyword)
+    {
+        return entries.stream().filter(e -> e.log.toLowerCase().contains(keyword.toLowerCase())).collect(Collectors.toList());
+    }
+
+    //Search by date
+    static List<LogEntry> searchByDate(List<LogEntry> entries, String date)
+    {
+        return entries.stream().filter(e -> e.dateTime.contains(date)).collect(Collectors.toList());
+    }
+
+    //Top N messages
+    static Map<String, Long> topMessages(List<LogEntry> entries, int n)
+    {
+        return entries.stream()
+                .collect(Collectors.groupingBy(e -> e.log, Collectors.counting()))
+                .entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(n)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+    }
+
+    //Least N messages
+    static Map<String, Long> leastMessages(List<LogEntry> entries, int n)
+    {
+        return entries.stream()
+                .collect(Collectors.groupingBy(e -> e.log, Collectors.counting()))
+                .entrySet().stream()
+                .sorted((a, b) -> Long.compare(a.getValue(), b.getValue()))
+                .limit(n)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+    }
+
+    //Create table
+    static void createTable() throws SQLException
+    {
+        Connection conn = DriverManager.getConnection(URL, USER, PASS);
+        conn.createStatement().execute(
+            "CREATE TABLE IF NOT EXISTS logs (id SERIAL PRIMARY KEY, log_time VARCHAR(50), level VARCHAR(20), log TEXT)"
+        );
+        conn.close();
+    }
+
+    //Insert all
+    static void insertAll(List<LogEntry> entries) throws SQLException
+    {
+        Connection        conn = DriverManager.getConnection(URL, USER, PASS);
+        PreparedStatement ps   = conn.prepareStatement("INSERT INTO logs (log_time, level, log) VALUES (?, ?, ?)");
+
+        conn.setAutoCommit(false);
+
+        for(LogEntry e : entries)
+        {
+            ps.setString(1, e.dateTime);
+            ps.setString(2, e.level);
+            ps.setString(3, e.log);
+            ps.addBatch();
+        }
+
+        ps.executeBatch();
+        conn.commit();
+        ps.close();
+        conn.close();
+
+        System.out.println("Inserted " + entries.size() + " entries.");
+    }
+
+    //Fetch by level from DB
+    static List<LogEntry> fetchByLevel(String level) throws SQLException
+    {
+        List<LogEntry>    entries = new ArrayList<>();
+        Connection        conn    = DriverManager.getConnection(URL, USER, PASS);
+        PreparedStatement ps      = conn.prepareStatement("SELECT log_time, level, log FROM logs WHERE level = ?");
+
+        ps.setString(1, level);
+        ResultSet rs = ps.executeQuery();
+
+        while(rs.next())
+        {
+            entries.add(new LogEntry(rs.getString("log_time"), rs.getString("level"), rs.getString("log")));
+        }
+
+        rs.close(); ps.close(); conn.close();
+        return entries;
+    }
+
+    //Clear DB
+    static void clearLogs() throws SQLException
+    {
+        Connection conn = DriverManager.getConnection(URL, USER, PASS);
+        conn.createStatement().execute("TRUNCATE TABLE logs");
+        conn.close();
+        System.out.println("DB cleared.");
+    }
+}
