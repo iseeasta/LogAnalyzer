@@ -2,8 +2,6 @@
 
 A CLI-based log analysis tool built in pure Java. Generates structured log files, parses them using multithreading, stores results in PostgreSQL, and provides search and analysis through an interactive terminal menu.
 
----
-
 ## What It Does
 
 - Generates a realistic fake log file with 6000+ entries across 9 different log levels
@@ -24,6 +22,13 @@ A CLI-based log analysis tool built in pure Java. Generates structured log files
 | DB Connection | JDBC (`PreparedStatement`, batch insert) |
 | Build Tool | Maven |
 
+![Java](https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=openjdk&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Maven](https://img.shields.io/badge/Maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
+![JDBC](https://img.shields.io/badge/JDBC-Batch%20Insert-4479A1?style=for-the-badge)
+![Threads](https://img.shields.io/badge/Threads-4%20Parallel-brightgreen?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Complete-success?style=for-the-badge)
+
 ---
 
 ## Project Structure
@@ -31,6 +36,7 @@ A CLI-based log analysis tool built in pure Java. Generates structured log files
 ```
 LogAnalyzer/
 ├── pom.xml
+├── Screenshots/
 └── com/company/
     │
     ├── Main.java                        → Entry point, CLI menu
@@ -109,6 +115,12 @@ LogAnalyzer/
 10. Exit
 ```
 
+## Screenshots
+
+<p align="center">
+  <img src="Screenshots/Screenshot%20From%202026-05-30%2021-29-03.png" width="800"/>
+</p>
+
 ---
 
 ## How Multithreading Works
@@ -163,4 +175,6 @@ mvn exec:java -Dexec.mainClass="com.company.Main"
 ```
 ---
 
-GitHub: [github.com/iseeasta](https://github.com/iseeasta)
+![GitHub](https://img.shields.io/badge/GitHub-iseeasta-181717?style=for-the-badge&logo=github&logoColor=white)
+![LinkedIn](https://img.shields.io/badge/LinkedIn-iseeasta-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)
+![Gmail](https://img.shields.io/badge/Gmail-iseeasta@gmail.com-D14836?style=for-the-badge&logo=gmail&logoColor=white)
